@@ -1,0 +1,1 @@
+This will be an app-template based web app that will stream the USB camera feed to the browser.
