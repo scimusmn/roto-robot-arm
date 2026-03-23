@@ -2,6 +2,8 @@ import React, { useEffect, useRef, useState } from 'react';
 
 const ENV_DEVICE_ID = process.env.GATSBY_CAMERA_DEVICE_ID || '';
 const LS_KEY = 'cameraDeviceId';
+const vidWidth = 1920;
+const vidHeight = 1080;
 
 function Home() {
   const videoRef = useRef(null);
@@ -14,8 +16,12 @@ function Home() {
 
     const constraints = {
       video: deviceId
-        ? { deviceId: { exact: deviceId }, width: { ideal: 1920 }, height: { ideal: 1080 } }
-        : { width: { ideal: 1920 }, height: { ideal: 1080 } },
+        ? {
+          deviceId: { exact: deviceId },
+          width: { ideal: vidWidth },
+          height: { ideal: vidHeight },
+        }
+        : { width: { ideal: vidWidth }, height: { ideal: vidHeight } },
       audio: false,
     };
 
@@ -48,19 +54,9 @@ function Home() {
 
   if (error) {
     return (
-      <div style={{
-        alignItems: 'center',
-        background: '#000',
-        color: '#f55',
-        display: 'flex',
-        flexDirection: 'column',
-        height: '100vh',
-        justifyContent: 'center',
-        width: '100vw',
-      }}
-      >
-        <p style={{ fontSize: '1.2rem', margin: 0 }}>Camera error</p>
-        <p style={{ color: '#aaa', fontSize: '0.85rem', marginTop: '0.5rem' }}>{error}</p>
+      <div className="camera-error">
+        <h2>Camera error</h2>
+        {error}
       </div>
     );
   }

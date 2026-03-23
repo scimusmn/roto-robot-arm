@@ -1,3 +1,4 @@
+/* stylelint-disable no-missing-end-of-source-newline */
 *,
 *::before,
 *::after {
@@ -26,6 +27,17 @@ body {
   object-fit: cover;
   position: fixed;
   top: 0;
+  width: 100vw;
+}
+
+.camera-error {
+  align-items: center;
+  background: #000;
+  color: #f55;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  justify-content: center;
   width: 100vw;
 }
 
@@ -91,4 +103,3 @@ body {
   margin-top: 0.25rem;
   word-break: break-all;
 }
-

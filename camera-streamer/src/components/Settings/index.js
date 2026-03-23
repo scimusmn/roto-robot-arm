@@ -43,7 +43,6 @@ function Settings() {
   return (
     <div className="settings-page">
       <h1>Camera Settings</h1>
-
       {ENV_DEVICE_ID && (
         <div className="env-notice">
           <strong>GATSBY_CAMERA_DEVICE_ID</strong>
