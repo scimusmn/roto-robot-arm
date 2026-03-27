@@ -45,7 +45,7 @@ function Settings() {
       <h1>Camera Settings</h1>
       {ENV_DEVICE_ID && (
         <div className="env-notice">
-          <strong>GATSBY_CAMERA_DEVICE_ID</strong>
+          <strong>CAMERA DEVICE ID</strong>
           {' '}
           is set via environment variable and will override any selection below until unset.
           <span className="device-id">{ENV_DEVICE_ID}</span>

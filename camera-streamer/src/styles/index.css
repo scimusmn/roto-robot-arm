@@ -41,6 +41,19 @@ body {
   width: 100vw;
 }
 
+.camera-retry-status {
+  border: 1px solid #f55;
+  border-radius: 4px;
+  color: #f55;
+  font-size: 1rem;
+  left: 50%;
+  margin-bottom: 1rem;
+  padding: 0.75rem 1.5rem;
+  position: absolute;
+  top: 1rem;
+  z-index: 5;
+}
+
 /* Settings page */
 .settings-page {
   background: #111;
