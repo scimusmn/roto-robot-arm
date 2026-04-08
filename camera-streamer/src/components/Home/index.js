@@ -2,8 +2,8 @@ import React, { useEffect, useRef, useState } from 'react';
 
 const ENV_DEVICE_ID = process.env.GATSBY_CAMERA_DEVICE_ID || '';
 const LS_KEY = 'cameraDeviceId';
-const vidWidth = 1920;
-const vidHeight = 1080;
+const vidWidth = 1024;
+const vidHeight = 768;
 
 function Home() {
   const videoRef = useRef(null);
