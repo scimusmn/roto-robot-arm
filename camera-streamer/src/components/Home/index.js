@@ -81,21 +81,13 @@ function Home() {
   }, [retryTrigger]);
 
   return (
-    <div className="camera-container">
+    <div className="container">
       {error && (
       <div className="camera-retry-status">
         {error}
       </div>
       )}
-      <div style={{
-        aspectRatio: '4 / 3',
-        backgroundColor: 'black',
-        overflow: 'hidden',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-      }}
-      >
+      <div className="video-container">
         <video
           ref={videoRef}
           autoPlay
