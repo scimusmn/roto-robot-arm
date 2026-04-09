@@ -1,5 +1,4 @@
 import React, { useEffect, useRef, useState } from 'react';
-import overlay from '../../styles/overlay.svg';
 
 const ENV_DEVICE_ID = process.env.GATSBY_CAMERA_DEVICE_ID || '';
 const LS_KEY = 'cameraDeviceId';
@@ -89,12 +88,7 @@ function Home() {
       </div>
       )}
       <div className="video-container">
-        <div style={{
-          position: 'absolute', width: '1024px', height: '768px', top: 0,
-        }}
-        >
-          <img alt="green" src={overlay} />
-        </div>
+        <div className="overlay" />
         <video
           ref={videoRef}
           autoPlay

@@ -35,14 +35,13 @@ body {
   overflow: hidden;
 }
 
-/* .overlay {
-  background-image: url("/styles/robotArm4.svg");
-  border: 1px solid orange;
-  height: 100%;
+.overlay {
+  background-image: url("./overlay2.svg");
+  height: 768px;
   position: absolute;
-  width: 100%;
-  z-index: 500;
-} */
+  top: 0;
+  width: 1024px;
+}
 
 .camera-video {
   height: auto;
