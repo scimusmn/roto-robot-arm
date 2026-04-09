@@ -23,8 +23,13 @@ function Home() {
           deviceId: { exact: deviceId },
           width: { ideal: vidWidth },
           height: { ideal: vidHeight },
+          frameRate: { ideal: 15, max: 20 },
         }
-        : { width: { ideal: vidWidth }, height: { ideal: vidHeight } },
+        : {
+          width: { ideal: vidWidth },
+          height: { ideal: vidHeight },
+          frameRate: { ideal: 15, max: 20 },
+        },
       audio: false,
     };
 
@@ -82,13 +87,23 @@ function Home() {
         {error}
       </div>
       )}
-      <video
-        ref={videoRef}
-        autoPlay
-        className="camera-video"
-        muted
-        playsInline
-      />
+      <div style={{
+        aspectRatio: '4 / 3',
+        backgroundColor: 'black',
+        overflow: 'hidden',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+      }}
+      >
+        <video
+          ref={videoRef}
+          autoPlay
+          className="camera-video"
+          muted
+          playsInline
+        />
+      </div>
     </div>
   );
 }

@@ -20,7 +20,8 @@ body {
 }
 
 /* Full-screen camera video */
-.camera-video {
+
+/* .camera-video {
   display: block;
   height: 100vh;
   left: 0;
@@ -28,6 +29,14 @@ body {
   position: fixed;
   top: 0;
   width: 100vw;
+} */
+
+.camera-video {
+  height: auto;
+  image-rendering: crisp-edges;
+  max-width: 1024px;
+  object-fit: contain;
+  width: 100%;
 }
 
 .camera-error {
