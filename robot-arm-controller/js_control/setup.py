@@ -28,6 +28,7 @@ setup(
         	'subscriber = js_control.subscriber:main',
         	'axis = js_control.axis:main',
         	'polar = js_control.polar:main',
+        	'polar_serial = js_control.polar_serial:main',
         ],
     },
 )
