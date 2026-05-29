@@ -4,6 +4,7 @@ from control_msgs.msg import JointJog
 from std_srvs.srv import Trigger
 from xarm_msgs.srv import SetInt16, MoveVelocity, Call, SetDigitalIO
 from xarm_msgs.msg import RobotMsg
+import time
 import threading
 import math
 import serial
@@ -238,26 +239,9 @@ class JsController(Node):
 
 		self.running = True
 		self.rosUpdate = self.rosUpdateGen()
-		
-		# create buttons
-		# self.vacuumButton = ToggleButton(
-		# 	self.joy, 0, 
-		# 	lambda : self.setGpio(pin=3, value=1),
-		# 	lambda : self.setGpio(pin=3, value=0),
-		# )
-		# self.dropButton = Button(
-		# 	self.joy, 1,
-		# 	lambda : self.setGpio(pin=4, value=1),
-		# 	lambda : self.setGpio(pin=4, value=0),
-		# )
-		# def setPitch(p):
-		# 	self.targetPitch = p
-		# self.pitchButton = ToggleButton(
-		# 	self.joy, 3,
-		# 	lambda : setPitch(-3.1415/2),
-		# 	lambda : setPitch(0),
-		# )
-		
+
+		self.inputTimestamp = time.time()
+			
 		self.dtheta = 0
 		self.dr = 0
 		self.dz = 0
@@ -267,8 +251,22 @@ class JsController(Node):
 		self.limits = [
 			(-3.1415/2, 3.1415/2), # theta
 			(300, 597), # r
-			(440, 1000), # z
+			(440, 900), # z
 		]
+	
+
+	def moveToPosition(self, theta, r, z):
+		dtheta = 0
+		dr = 0
+		dz = 0
+		if abs(self.robotState.theta - theta) > 0.10:
+			dtheta = -0.5 * sign(self.robotState.theta - theta)
+		if abs(self.robotState.r - r) > 10:
+			dr = 0.5 * sign(self.robotState.r - r)
+		if abs(self.robotState.z - z) > 10:
+			dz = -0.5 * sign(self.robotState.z - z)
+		return self.setVelocities(dtheta, dr, dz)
+		
 	
 	
 	def setVelocities(self, dtheta, dr, dz):
@@ -351,9 +349,14 @@ class JsController(Node):
 		if abs(dz) < dead:
 			dz = 0
 
-		print(dtheta, dr, dz)
-
-		return self.setVelocities(dtheta, dr, dz)
+		if dtheta != 0 or dr != 0 or dz != 0:
+			self.inputTimestamp = time.time()
+		idleTime = time.time() - self.inputTimestamp
+		print(idleTime)
+		if idleTime > 10:
+			return self.moveToPosition(0, 400, 500)
+		else:
+			return self.setVelocities(dtheta, dr, dz)
 
 	
 
