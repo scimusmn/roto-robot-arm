@@ -11,10 +11,24 @@ import serial
 import serial.tools.list_ports
 
 
+PITCH_DOWN = 0
+PITCH_UP = -3.0000/2
+
+
+GPIO_VACUUM = 3
+GPIO_VALVE = 4
+
+
+# r1 = 391.37
+# r2 = 449.66
+# 
+# r1 = r1/r1
+# r2 = r2/r1
+# a2 = 0.340339 # 19.5 degrees
+
 r1 = 1
 r2 = 1
-# r1 = 0.381
-# r2 = 0.731
+a2 = 0
 
 
 MAX_SPEED = 3.1415/2
@@ -33,6 +47,7 @@ def angle_clamp(x):
 
 
 def solve_angles(u, v, dr, dz):
+	u += a2
 	if dr == 0 and dz == 0:
 		return [ 0, 0 ]
 	a = r1*math.sin(u)
@@ -49,6 +64,19 @@ def solve_angles(u, v, dr, dz):
 
 	dv = (dr/B) - (A/B - 1)*du
 	# return [ du, dv ]
+	return [ angle_clamp(du), angle_clamp(dv) ]
+
+
+def solve_angles_offset(u, v, dr, dz):
+	c1 = r1*math.cos(u)
+	c2 = r2*math.cos(v-u+a2)
+	s1 = r1*math.sin(u)
+	s2 = r2*math.sin(v-u+a2)
+
+	dc = c1 - c2
+	ds = -s1 + s2
+	dv = (dz*dc)/(ds*dr - (c2*ds + dc*s2))
+	du = (dr - c2*dv)/dc
 	return [ angle_clamp(du), angle_clamp(dv) ]
 
 
@@ -176,14 +204,26 @@ class RobotState():
 
 		self.error = 0
 		self.angles = [ 0 for i in range(6) ]
+		self.ready = False
 	
 	def callback(self, msg):
 		self.error = msg.err
 		self.angles = msg.angle
 		x, y, z, roll, pitch, yaw = msg.pose	
-		self.theta = math.atan2(y, x)
-		self.r = math.sqrt(x*x + y*y)
-		# print('r', self.r)
+		theta = math.atan2(y, x)
+		r = math.sqrt(x*x + y*y)
+		if self.ready:
+			ts = time.time()
+			dt = ts - self.ts
+			self.ts = ts
+			self.dtheta = (theta - self.theta)/dt
+			self.dr = (r - self.r)/dt
+			self.dz = (z - self.z)/dt
+		else:
+			self.ready = True
+			self.ts = time.time()
+		self.theta = theta
+		self.r = r
 		self.z = z
 		self.pitch = pitch
 
@@ -246,24 +286,35 @@ class JsController(Node):
 		self.dr = 0
 		self.dz = 0
 		self.velSigns = [ 0, 0, 0 ]
-		self.targetPitch = 0
+		self.targetPitch = PITCH_UP
 		
 		self.limits = [
 			(-3.1415/2, 3.1415/2), # theta
-			(300, 597), # r
-			(440, 900), # z
+			(300, 612), # r
+			(433, 900), # z
 		]
+	
+	def gripperStart(self):
+		self.setGpio(pin=GPIO_VACUUM, value=1)
+		self.setGpio(pin=GPIO_VALVE, value=0)
+	
+	def gripperStop(self):
+		self.setGpio(pin=GPIO_VACUUM, value=0)
+	
+	def gripperDrop(self):
+		self.setGpio(pin=GPIO_VALVE, value=1)
 	
 
 	def moveToPosition(self, theta, r, z):
+		self.targetPitch = PITCH_UP
 		dtheta = 0
 		dr = 0
 		dz = 0
 		if abs(self.robotState.theta - theta) > 0.10:
 			dtheta = -0.5 * sign(self.robotState.theta - theta)
-		if abs(self.robotState.r - r) > 10:
+		if abs(self.robotState.r - r) > 5:
 			dr = 0.5 * sign(self.robotState.r - r)
-		if abs(self.robotState.z - z) > 10:
+		if abs(self.robotState.z - z) > 5:
 			dz = -0.5 * sign(self.robotState.z - z)
 		return self.setVelocities(dtheta, dr, dz)
 		
@@ -290,16 +341,41 @@ class JsController(Node):
 				self.velSigns[2] = 0
 
 		# block limits
-		def testLimit(v, x, lim):
-			lo, hi = lim
-			if x < lo and v < 0:
-				return 0
-			elif x > hi and v > 0:
-				return 0
-			else:
-				return v
+		def slowNear(v, x, lim, sgn, scale=10):
+			diff = sgn * (lim - x) / scale 
+			diff = clamp(diff, -1, 1)
+			return diff
 
-		dtheta = testLimit(dtheta, self.robotState.theta, self.limits[0])
+		def limitSlow(v, x, lim, scale=10):
+			lo, hi = lim
+			slowLo = slowNear(v, x, lo, -1, scale)
+			slowHi = slowNear(v, x, hi,  1, scale)
+			return slowLo * slowHi
+
+		def testLimit(v, x, lim, scale=10):
+			lo, hi = lim
+			f = limitSlow(v, x, lim, scale)
+			print(f)
+			# if x < lo and v < 0:
+			if x < lo:
+				return -f
+			elif x > hi:
+				return f
+			else:
+				midpoint = (lo+hi)/2
+				if x > midpoint and v > 0:
+					return f*v
+				elif x < midpoint and v < 0:
+					return f*v
+				else:
+					return v
+
+		dtheta = testLimit(
+			dtheta, 
+			self.robotState.theta, 
+			self.limits[0],
+			0.1
+		)
 		dr = -testLimit(-dr, self.robotState.r, self.limits[1])
 		dz = testLimit(dz, self.robotState.z, self.limits[2])
 
@@ -308,16 +384,38 @@ class JsController(Node):
 		self.dr = dr
 		self.dz = dz
 
+		if self.robotState.ready:
+			def error(s, r):
+				if r != 0:
+					return s-r
+				else:
+					return 0
+			ez = error(self.dz, self.robotState.dz)
+			er = error(self.dr, self.robotState.dr)
+			etheta = error(self.dtheta, self.robotState.dtheta)
+			# dz = dz - ez
+			# dr = dr - er
+			# dtheta = dtheta - etheta
+			print("r:", self.dr, self.robotState.dr, er)
+			print("z:", self.dz, self.robotState.dz, ez)
+			print("theta:", self.dtheta, self.robotState.dtheta, etheta)
+			print()
+
+
+
 		# compute joint velocities
 		a1 = self.robotState.angles[1]
 		a2 = self.robotState.angles[2]
 		v1, v2 = solve_angles(a1, a2, 0.1*dr, 0.1*dz)
+		# v1, v2 = solve_angles_offset(a1, a2, 0.1*dr, 0.1*dz)
 		vels[0] = 0.1*dtheta
 		vels[1] = v1
 		vels[2] = v2
 		if abs(self.robotState.pitch - self.targetPitch) > 0.10:
 			vels[4] = 0.5*sign(self.robotState.pitch - self.targetPitch)
 		vels[4] += v2 - v1
+		if self.robotState.pitch < -3.1415/2:
+			vels[4] = 0
 
 		return self.setJointVelocity(vels=vels)
 	
@@ -352,7 +450,6 @@ class JsController(Node):
 		if dtheta != 0 or dr != 0 or dz != 0:
 			self.inputTimestamp = time.time()
 		idleTime = time.time() - self.inputTimestamp
-		print(idleTime)
 		if idleTime > 10:
 			return self.moveToPosition(0, 400, 500)
 		else:
@@ -420,15 +517,27 @@ class JsController(Node):
 
 		# main loop
 		while True:
+			# print(
+			# 	self.robotState.dr, 
+			# 	self.robotState.dz,
+			# 	self.robotState.dtheta
+			# )
 			line = self.port.readline()
 			linearr = line.decode().strip().split(' ')
 			linearr = [ int(x) for x in linearr ]
 			dtheta, dr, dz, bup, bdown = linearr
 
+			if self.robotState.z and self.targetPitch == 0 < 500:
+				self.gripperStart()
+			else:
+				self.gripperStop()
+
 			if bup > 0:
-				self.targetPitch = -3.1415/2
+				self.targetPitch = PITCH_UP
+				self.inputTimestamp = time.time()
 			if bdown > 0:
-				self.targetPitch = 0
+				self.targetPitch = PITCH_DOWN 
+				self.inputTimestamp = time.time()
 
 			# self.vacuumButton.update()
 			# self.dropButton.update()
