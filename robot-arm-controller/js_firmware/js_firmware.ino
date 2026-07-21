@@ -5,7 +5,7 @@
 
 #define LED_COUNT 57
 #define LED_BRIGHTNESS 50
-Adafruit_NeoPixel led_strip(LED_COUNT, LED_PIN, NEO_GRBW + NEO_KHZ800);
+Adafruit_NeoPixel strip(LED_COUNT, LED_PIN, NEO_GRBW + NEO_KHZ800);
 
 
 // --===== LED disks & animations =====--
@@ -14,7 +14,11 @@ struct LedDisk;
 #define OUTER_DISK_LEN 12
 #define INNER_DISK_LEN 6
 #define TOTAL_DISK_LEN (OUTER_DISK_LEN + INNER_DISK_LEN + 1)
-#define NUM_ANIMATIONS 1
+enum LedAnimations : unsigned int {
+  SPIN_ANIM,
+  FILL_ANIM,
+  NUM_ANIMATIONS
+};
 
 typedef unsigned int (animation_t)(unsigned int, LedDisk*);
 
@@ -24,12 +28,14 @@ struct LedDisk {
   unsigned int anim_idx, anim_frame;
 
   void draw(int idx, uint32_t color) {
-    led_strip.setPixelColor(idx + start_idx, color);
+    strip.setPixelColor(idx + start_idx, color);
   }
 
   void set_animation(unsigned int idx) {
-    anim_idx = idx;
-    anim_frame = 0;
+    if (idx != anim_idx) { // only reset if being set to a NEW animation
+      anim_idx = idx;
+      anim_frame = 0;
+    }
   }
 
   void update() {
@@ -44,16 +50,38 @@ struct LedDisk {
 };
 animation_t * LedDisk::animations[NUM_ANIMATIONS];
 
-
 unsigned int spin_anim(unsigned int frame, LedDisk *disk) {
-  int pos = frame % OUTER_DISK_LEN;
+  int pos = (frame >> 1) % OUTER_DISK_LEN;
   for (int i=0; i<TOTAL_DISK_LEN; i++) {
     disk->draw(
       i, 
-      i == pos ? led_strip.Color(0xff, 0, 0) : led_strip.Color(0,0,0)
+      i == pos ? strip.Color(0, 0, 0xff) : strip.Color(0,0,0)
     );
   }
-  return 0;
+  return SPIN_ANIM;
+}
+
+
+unsigned int fill_anim(unsigned int frame, LedDisk *disk) {
+  int len = frame >> 4;
+  for (int i=0; i<TOTAL_DISK_LEN; i++) {
+    disk->draw(
+      i,
+      i <= len ? strip.Color(0,0,0xff) : strip.Color(0,0,0)
+    );
+  }
+
+  if (len >= TOTAL_DISK_LEN) {
+    return SPIN_ANIM;
+  } else {
+    return FILL_ANIM;
+  }
+}
+
+
+void setup_animations() {
+  LedDisk::animations[SPIN_ANIM] = spin_anim;
+  LedDisk::animations[FILL_ANIM] = fill_anim;
 }
 
 
@@ -107,7 +135,7 @@ void dump_buttons() {
 // --===== globals =====--
 LedDisk disk1, disk2, disk3;
 interval_t ui_update, led_update;
-// led_strip should be here too but is referenced in specific functions
+// strip should be here too but is referenced in specific functions
 
 
 
@@ -122,14 +150,14 @@ void setup() {
 	pinMode(TARGET3, INPUT_PULLUP);
 
 	// configure LED strip
-	led_strip.begin();
-	led_strip.show();
-	led_strip.setBrightness(LED_BRIGHTNESS);
+	strip.begin();
+	strip.show();
+	strip.setBrightness(LED_BRIGHTNESS);
+	setup_animations();
 
 	// configure disks
-  LedDisk::animations[0] = spin_anim;
 	disk1.start_idx = 0 * TOTAL_DISK_LEN;
-	disk1.set_animation(0);
+	disk1.set_animation(1);
 	disk2.start_idx = 1 * TOTAL_DISK_LEN;
 	disk2.set_animation(0);
 	disk3.start_idx = 2 * TOTAL_DISK_LEN;
@@ -149,12 +177,21 @@ void loop() {
     dump_joysticks();
     dump_buttons();
 	  Serial.println();
+	  if (!digitalRead(TARGET1)) {
+	    disk1.set_animation(1);
+	  }
+	  if (!digitalRead(TARGET2)) {
+	    disk2.set_animation(1);
+	  }
+	  if (!digitalRead(TARGET3)) {
+	    disk3.set_animation(1);
+	  }
 	}
 
 	if (interval_ready(&led_update)) {
   	disk1.update();
   	disk2.update();
   	disk3.update();
-  	led_strip.show();
+  	strip.show();
   }
 }
