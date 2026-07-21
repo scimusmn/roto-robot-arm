@@ -429,9 +429,9 @@ class JsController(Node):
 
 	def setVelocitiesFromJoystick(self, dtheta, dr, dz):
 		# parameters
-		center = 425
+		center = 460
 		span = 300
-		dead = 0.15
+		dead = 0.20
 
 		# adjust raw ADC value to level
 		dtheta = (dtheta - center) / span 
