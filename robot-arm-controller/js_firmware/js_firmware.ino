@@ -134,7 +134,7 @@ void dump_buttons() {
 
 // --===== globals =====--
 LedDisk disk1, disk2, disk3;
-interval_t ui_update, led_update;
+interval_t ui_update, led_update, bs_update;
 // strip should be here too but is referenced in specific functions
 
 
@@ -143,55 +143,86 @@ interval_t ui_update, led_update;
 
 void setup() {
   // configure all button pins
-	pinMode(UP_BTN, INPUT_PULLUP);
-	pinMode(DOWN_BTN, INPUT_PULLUP);
-	pinMode(TARGET1, INPUT_PULLUP);
-	pinMode(TARGET2, INPUT_PULLUP);
-	pinMode(TARGET3, INPUT_PULLUP);
+  pinMode(UP_BTN, INPUT_PULLUP);
+  pinMode(DOWN_BTN, INPUT_PULLUP);
+  pinMode(TARGET1, INPUT_PULLUP);
+  pinMode(TARGET2, INPUT_PULLUP);
+  pinMode(TARGET3, INPUT_PULLUP);
 
-	// configure LED strip
-	strip.begin();
-	strip.show();
-	strip.setBrightness(LED_BRIGHTNESS);
-	setup_animations();
+  // configure LED strip
+  strip.begin();
+  strip.show();
+  strip.setBrightness(LED_BRIGHTNESS);
+  setup_animations();
 
-	// configure disks
-	disk1.start_idx = 0 * TOTAL_DISK_LEN;
-	disk1.set_animation(1);
-	disk2.start_idx = 1 * TOTAL_DISK_LEN;
-	disk2.set_animation(0);
-	disk3.start_idx = 2 * TOTAL_DISK_LEN;
-	disk3.set_animation(0);
+  // configure disks
+  disk1.start_idx = 0 * TOTAL_DISK_LEN;
+  disk1.set_animation(1);
+  disk2.start_idx = 1 * TOTAL_DISK_LEN;
+  disk2.set_animation(0);
+  disk3.start_idx = 2 * TOTAL_DISK_LEN;
+  disk3.set_animation(0);
 
   // enable serial comms
-	Serial.begin(115200);
+  Serial.begin(115200);
 
   // configure update intervals
-	ui_update.delta = 100; 
-	led_update.delta = 10;
+  ui_update.delta = 100; 
+  led_update.delta = 10;
+  bs_update.delta = 100;
 }
 
 
 void loop() {
+  static int bs1 = 0;
+  static int bs2 = 0;
+  static int bs3 = 0;
+
   if (interval_ready(&ui_update)) {
     dump_joysticks();
     dump_buttons();
-	  Serial.println();
-	  if (!digitalRead(TARGET1)) {
-	    disk1.set_animation(1);
-	  }
-	  if (!digitalRead(TARGET2)) {
-	    disk2.set_animation(1);
-	  }
-	  if (!digitalRead(TARGET3)) {
-	    disk3.set_animation(1);
-	  }
-	}
+    Serial.println();
+    if (!digitalRead(TARGET1)) {
+      disk1.set_animation(1);
+      bs1 = 2;
+    }
+    if (!digitalRead(TARGET2)) {
+      disk2.set_animation(1);
+      bs2 = 2;
+    }
+    if (!digitalRead(TARGET3)) {
+      disk3.set_animation(1);
+      bs3 = 2;
+    }
+  }
 
-	if (interval_ready(&led_update)) {
-  	disk1.update();
-  	disk2.update();
-  	disk3.update();
-  	strip.show();
+  if (interval_ready(&led_update)) {
+    disk1.update();
+    disk2.update();
+    disk3.update();
+    strip.show();
+  }
+
+  if (interval_ready(&bs_update)) {
+    if (bs1) {
+      digitalWrite(BRIGHTSIGN_B0, 1);
+      bs1 -= 1;
+    } else {
+      digitalWrite(BRIGHTSIGN_B0, 0);
+    }
+
+    if (bs2) {
+      digitalWrite(BRIGHTSIGN_B1, 1);
+      bs2 -= 1;
+    } else {
+      digitalWrite(BRIGHTSIGN_B1, 0);
+    }
+
+    if (bs3) {
+      digitalWrite(BRIGHTSIGN_B2, 1);
+      bs3 -= 1;
+    } else {
+      digitalWrite(BRIGHTSIGN_B2, 0);
+    }
   }
 }
