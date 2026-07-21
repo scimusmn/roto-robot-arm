@@ -293,6 +293,8 @@ class JsController(Node):
 			(300, 612), # r
 			(433, 900), # z
 		]
+
+		self.goHome = False
 	
 	def gripperStart(self):
 		self.setGpio(pin=GPIO_VACUUM, value=1)
@@ -316,6 +318,8 @@ class JsController(Node):
 			dr = 0.5 * sign(self.robotState.r - r)
 		if abs(self.robotState.z - z) > 5:
 			dz = -0.5 * sign(self.robotState.z - z)
+		if self.goHome and dtheta == 0 and dr == 0 and dz == 0:
+			self.goHome = False
 		return self.setVelocities(dtheta, dr, dz)
 		
 	
@@ -355,7 +359,6 @@ class JsController(Node):
 		def testLimit(v, x, lim, scale=10):
 			lo, hi = lim
 			f = limitSlow(v, x, lim, scale)
-			print(f)
 			# if x < lo and v < 0:
 			if x < lo:
 				return -f
@@ -396,10 +399,6 @@ class JsController(Node):
 			# dz = dz - ez
 			# dr = dr - er
 			# dtheta = dtheta - etheta
-			print("r:", self.dr, self.robotState.dr, er)
-			print("z:", self.dz, self.robotState.dz, ez)
-			print("theta:", self.dtheta, self.robotState.dtheta, etheta)
-			print()
 
 
 
@@ -450,7 +449,7 @@ class JsController(Node):
 		if dtheta != 0 or dr != 0 or dz != 0:
 			self.inputTimestamp = time.time()
 		idleTime = time.time() - self.inputTimestamp
-		if idleTime > 10:
+		if self.goHome or idleTime > 10:
 			return self.moveToPosition(0, 400, 500)
 		else:
 			return self.setVelocities(dtheta, dr, dz)
@@ -525,7 +524,8 @@ class JsController(Node):
 			line = self.port.readline()
 			linearr = line.decode().strip().split(' ')
 			linearr = [ int(x) for x in linearr ]
-			dtheta, dr, dz, bup, bdown = linearr
+			dtheta, dr, dz, bup, bdown, tgt1, tgt2, tgt3 = linearr
+			print(linearr)
 
 			if self.robotState.z and self.targetPitch == 0 < 500:
 				self.gripperStart()
@@ -539,9 +539,10 @@ class JsController(Node):
 				self.targetPitch = PITCH_DOWN 
 				self.inputTimestamp = time.time()
 
-			# self.vacuumButton.update()
-			# self.dropButton.update()
-			# self.pitchButton.update()
+			if tgt1 > 0 or tgt2 > 0 or tgt3 > 0:
+				self.gripperDrop()
+				self.goHome = True
+
 			wait = None
 			if self.robotState.error == 22: # self-collision
 				wait = self.blockAndClearError()
