@@ -1,0 +1,6 @@
+ufactory_driver:
+  ros__parameters:
+    services:
+      get_tgpio_digital: true
+      set_tgpio_digital: true
+      get_position: true

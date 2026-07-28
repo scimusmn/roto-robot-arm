@@ -1,0 +1,4 @@
+[submodule "robot-arm-controller/ros2/src/xarm_ros2"]
+	path = robot-arm-controller/ros2/src/xarm_ros2
+	url = https://github.com/xarm-Developer/xarm_ros2
+	branch = jazzy
