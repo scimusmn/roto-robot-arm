@@ -83,27 +83,8 @@ unsigned int fill_anim(unsigned int frame, LedDisk *disk) {
 }
 
 
-//unsigned int attract_anim(unsigned int frame, LedDisk *disk) {
-//  int k = (frame >> 3) % OUTER_DISK_LEN;
-//  for (int i=0; i<TOTAL_DISK_LEN; i++) {
-//    if (k == 2 && i == k) {
-//      disk->draw(i, strip.Color(0xff,0,0));
-//    } else if (k == 4 && i == k) {
-//      disk->draw(i, strip.Color(0xff,0,0));
-//    } else if (k==8 && i == k) {
-//      disk->draw(i, strip.Color(0,0xff,0));
-//    } else if (k==10 && i == k) {
-//      disk->draw(i, strip.Color(0,0xff,0));
-//    } else {
-//      disk->draw(i, strip.Color(0,0,0));
-//    }
-//  }
-//  return ATTRACT_ANIM;
-//}
-
-
 unsigned int attract_anim(unsigned int frame, LedDisk *disk) {
-  int k = (frame >> 3) % OUTER_DISK_LEN;
+  int k = (frame >> 2) % OUTER_DISK_LEN;
   for (int i=0; i<TOTAL_DISK_LEN; i++) {
     if (k==2 && (i==2 || i==4)) {
       disk->draw(i, strip.Color(0xff,0,0));
@@ -116,10 +97,124 @@ unsigned int attract_anim(unsigned int frame, LedDisk *disk) {
   return ATTRACT_ANIM;
 }
 
+
+unsigned int success1_anim(unsigned int frame, LedDisk *disk) {
+  uint64_t f = frame;
+  uint64_t color = (f * 0xffffff) / 256;
+  strip.fill(color, disk->start_idx, TOTAL_DISK_LEN);
+  if (frame > 0xff) {
+    return ATTRACT_ANIM;
+  } else {
+    return SUCCESS1_ANIM;
+  }
+}
+
+
+
+unsigned int bounce_slow_anim(unsigned int frame, LedDisk *disk) {
+  int f = (frame >> 2) % OUTER_DISK_LEN;
+  for (int i=0; i<OUTER_DISK_LEN; i++) {
+    if (i == f || (OUTER_DISK_LEN - i) == f) {
+      disk->draw(i, 0xffffffff);
+    } else {
+      disk->draw(i, 0x000000);
+    }
+  }
+  if ((frame >> 2) > 10*OUTER_DISK_LEN) {
+    return ATTRACT_ANIM;
+  } else {
+    return SUCCESS1_ANIM;
+  }
+}
+
+
+
+
+unsigned int bounce_anim(unsigned int frame, LedDisk *disk) {
+  int f = (frame >> 1) % OUTER_DISK_LEN;
+  const uint32_t colors[] = { 0xffffffff, 0xffffff00 };
+  uint32_t color = colors[(2*f/OUTER_DISK_LEN) % sizeof(colors)];
+  for (int i=0; i<OUTER_DISK_LEN; i++) {
+    if (i == f || (OUTER_DISK_LEN - i) == f) {
+      disk->draw(i, color);
+    } else {
+      disk->draw(i, 0x000000);
+    }
+  }
+  if ((frame >> 2) > 10*OUTER_DISK_LEN) {
+    return ATTRACT_ANIM;
+  } else {
+    return SUCCESS2_ANIM;
+  }
+}
+
+
+
+unsigned int bounce_fast_anim(unsigned int frame, LedDisk *disk) {
+  const int NUM_COLORS = 6;
+  const uint32_t colors[NUM_COLORS] = { 
+    0xf90101, 0x9c5504, 0x47e409, 
+    0x03aa89, 0x0051ff, 0x90036a
+  };
+
+  const int NUM_FRAMES = 26;
+  uint32_t color = colors[ (2*(frame >> 1)/(NUM_FRAMES>>1)) % NUM_COLORS ];
+  const uint16_t frames[NUM_FRAMES] = {
+    0b0000000000000000,
+    0b0000100000000010,
+    0b0000100000000010,
+    0b0000010000000100,
+    0b0000010000000100,
+    0b0000001000001000,
+    0b0000001000001000,
+    0b0000000100010000,
+    0b0000000100010000,
+    0b0000000010100000,
+    0b0000000010100000,
+    0b0000000001000000,
+    0b0000000001000000,
+    0b0000000000000000,
+    0b0000000001000000,
+    0b0000000001000000,
+    0b0000000010100000,
+    0b0000000010100000,
+    0b0000000100010000,
+    0b0000000100010000,
+    0b0000001000001000,
+    0b0000001000001000,
+    0b0000010000000100,
+    0b0000010000000100,
+    0b0000100000000010,
+    0b0000100000000010,
+  };
+  uint16_t f = frames[frame % NUM_FRAMES];
+
+  for (int i=0; i<OUTER_DISK_LEN; i++) {
+    if ((1<<i) & f) {
+      disk->draw(i, color);
+    } else {
+      disk->draw(i, 0);
+    }
+  }
+
+  if (frame > 20*NUM_FRAMES) {
+    return ATTRACT_ANIM;
+  } else {
+    return SUCCESS3_ANIM;
+  }
+}
+
+
+
+
+
 void setup_animations() {
   LedDisk::animations[SPIN_ANIM] = spin_anim;
   LedDisk::animations[FILL_ANIM] = fill_anim;
   LedDisk::animations[ATTRACT_ANIM] = attract_anim;
+  LedDisk::animations[SUCCESS1_ANIM] = bounce_slow_anim;
+  LedDisk::animations[SUCCESS2_ANIM] = bounce_anim;
+  LedDisk::animations[SUCCESS3_ANIM] = bounce_fast_anim;
 }
 
 
@@ -195,7 +290,7 @@ void setup() {
 
   // configure disks
   disk1.start_idx = 0 * TOTAL_DISK_LEN;
-  disk1.set_animation(FILL_ANIM);
+  disk1.set_animation(SUCCESS1_ANIM);
   disk2.start_idx = 1 * TOTAL_DISK_LEN;
   disk2.set_animation(ATTRACT_ANIM);
   disk3.start_idx = 2 * TOTAL_DISK_LEN;
@@ -206,7 +301,7 @@ void setup() {
 
   // configure update intervals
   ui_update.delta = 100; 
-  led_update.delta = 10;
+  led_update.delta = 33;
   bs_update.delta = 100;
 }
 
@@ -221,15 +316,15 @@ void loop() {
     dump_buttons();
     Serial.println();
     if (!digitalRead(TARGET1)) {
-      disk1.set_animation(FILL_ANIM);
+      disk1.set_animation(SUCCESS1_ANIM);
       bs1 = 2;
     }
     if (!digitalRead(TARGET2)) {
-      disk2.set_animation(FILL_ANIM);
+      disk2.set_animation(SUCCESS2_ANIM);
       bs2 = 2;
     }
     if (!digitalRead(TARGET3)) {
-      disk3.set_animation(FILL_ANIM);
+      disk3.set_animation(SUCCESS3_ANIM);
       bs3 = 2;
     }
   }
