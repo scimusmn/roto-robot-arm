@@ -17,6 +17,10 @@ struct LedDisk;
 enum LedAnimations : unsigned int {
   SPIN_ANIM,
   FILL_ANIM,
+  ATTRACT_ANIM,
+  SUCCESS1_ANIM,
+  SUCCESS2_ANIM,
+  SUCCESS3_ANIM,
   NUM_ANIMATIONS
 };
 
@@ -72,16 +76,50 @@ unsigned int fill_anim(unsigned int frame, LedDisk *disk) {
   }
 
   if (len >= TOTAL_DISK_LEN) {
-    return SPIN_ANIM;
+    return ATTRACT_ANIM;
   } else {
     return FILL_ANIM;
   }
 }
 
 
+//unsigned int attract_anim(unsigned int frame, LedDisk *disk) {
+//  int k = (frame >> 3) % OUTER_DISK_LEN;
+//  for (int i=0; i<TOTAL_DISK_LEN; i++) {
+//    if (k == 2 && i == k) {
+//      disk->draw(i, strip.Color(0xff,0,0));
+//    } else if (k == 4 && i == k) {
+//      disk->draw(i, strip.Color(0xff,0,0));
+//    } else if (k==8 && i == k) {
+//      disk->draw(i, strip.Color(0,0xff,0));
+//    } else if (k==10 && i == k) {
+//      disk->draw(i, strip.Color(0,0xff,0));
+//    } else {
+//      disk->draw(i, strip.Color(0,0,0));
+//    }
+//  }
+//  return ATTRACT_ANIM;
+//}
+
+
+unsigned int attract_anim(unsigned int frame, LedDisk *disk) {
+  int k = (frame >> 3) % OUTER_DISK_LEN;
+  for (int i=0; i<TOTAL_DISK_LEN; i++) {
+    if (k==2 && (i==2 || i==4)) {
+      disk->draw(i, strip.Color(0xff,0,0));
+    } else if (k==8 && (i==8 || i==10)) {
+      disk->draw(i, strip.Color(0,0x7f,0));
+    } else {
+      disk->draw(i, strip.Color(0,0,0));
+    }
+  }
+  return ATTRACT_ANIM;
+}
+
 void setup_animations() {
   LedDisk::animations[SPIN_ANIM] = spin_anim;
   LedDisk::animations[FILL_ANIM] = fill_anim;
+  LedDisk::animations[ATTRACT_ANIM] = attract_anim;
 }
 
 
@@ -157,11 +195,11 @@ void setup() {
 
   // configure disks
   disk1.start_idx = 0 * TOTAL_DISK_LEN;
-  disk1.set_animation(1);
+  disk1.set_animation(FILL_ANIM);
   disk2.start_idx = 1 * TOTAL_DISK_LEN;
-  disk2.set_animation(0);
+  disk2.set_animation(ATTRACT_ANIM);
   disk3.start_idx = 2 * TOTAL_DISK_LEN;
-  disk3.set_animation(0);
+  disk3.set_animation(ATTRACT_ANIM);
 
   // enable serial comms
   Serial.begin(115200);
@@ -183,15 +221,15 @@ void loop() {
     dump_buttons();
     Serial.println();
     if (!digitalRead(TARGET1)) {
-      disk1.set_animation(1);
+      disk1.set_animation(FILL_ANIM);
       bs1 = 2;
     }
     if (!digitalRead(TARGET2)) {
-      disk2.set_animation(1);
+      disk2.set_animation(FILL_ANIM);
       bs2 = 2;
     }
     if (!digitalRead(TARGET3)) {
-      disk3.set_animation(1);
+      disk3.set_animation(FILL_ANIM);
       bs3 = 2;
     }
   }
