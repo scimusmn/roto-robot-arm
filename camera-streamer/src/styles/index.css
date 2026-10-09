@@ -36,10 +36,9 @@ body {
 }
 
 .overlay {
-  background-image: url("./overlay2.svg");
+  background-image: url("./overlay.svg");
   height: 768px;
   position: absolute;
-  top: 0;
   width: 1024px;
 }
 
