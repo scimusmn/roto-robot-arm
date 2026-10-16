@@ -14,6 +14,16 @@ import serial.tools.list_ports
 PITCH_DOWN = 0
 PITCH_UP = -3.0000/2
 
+TIMEOUT_SECONDS = 60
+
+GOHOME_DELAY = 5
+DROP_DELAY = 3
+
+ANGLE_LIMITS = (-1.74, 1.74) # theta
+# RADIUS_LIMITS = (300, 596)
+RADIUS_LIMITS = (300, 600)
+HEIGHT_LIMITS = (414, 900)
+
 
 GPIO_VACUUM = 3
 GPIO_VALVE = 4
@@ -287,14 +297,20 @@ class JsController(Node):
 		self.dz = 0
 		self.velSigns = [ 0, 0, 0 ]
 		self.targetPitch = PITCH_UP
-		
+
 		self.limits = [
-			(-3.1415/2, 3.1415/2), # theta
-			(300, 612), # r
-			(433, 900), # z
+			ANGLE_LIMITS,
+			RADIUS_LIMITS,
+			HEIGHT_LIMITS,
 		]
 
 		self.goHome = False
+
+		self.tgt1 = 0
+		self.tgt2 = 0
+		self.tgt3 = 0
+
+		self.scheduledEvents = []
 	
 	def gripperStart(self):
 		self.setGpio(pin=GPIO_VACUUM, value=1)
@@ -353,7 +369,7 @@ class JsController(Node):
 		def limitSlow(v, x, lim, scale=10):
 			lo, hi = lim
 			slowLo = slowNear(v, x, lo, -1, scale)
-			slowHi = slowNear(v, x, hi,  1, scale)
+			slowHi = slowNear(v, x, hi,	1, scale)
 			return slowLo * slowHi
 
 		def testLimit(v, x, lim, scale=10):
@@ -434,9 +450,9 @@ class JsController(Node):
 		dead = 0.20
 
 		# adjust raw ADC value to level
-		dtheta = (dtheta - center) / span 
-		dr = -(dr - center) / span
-		dz = (dz - center) / span
+		dtheta = -(dtheta - center) / span 
+		dr = (dr - center) / span
+		dz = -(dz - center) / span
 
 		# zero dead zone 
 		if abs(dtheta) < dead:
@@ -449,7 +465,7 @@ class JsController(Node):
 		if dtheta != 0 or dr != 0 or dz != 0:
 			self.inputTimestamp = time.time()
 		idleTime = time.time() - self.inputTimestamp
-		if self.goHome or idleTime > 10:
+		if self.goHome or idleTime > TIMEOUT_SECONDS:
 			return self.moveToPosition(0, 400, 500)
 		else:
 			return self.setVelocities(dtheta, dr, dz)
@@ -525,7 +541,24 @@ class JsController(Node):
 			linearr = line.decode().strip().split(' ')
 			linearr = [ int(x) for x in linearr ]
 			dtheta, dr, dz, bup, bdown, tgt1, tgt2, tgt3 = linearr
-			print(linearr)
+
+			tgt1pressed = False
+			if tgt1 > 1 and self.tgt1 == 0:
+				tgt1pressed = True
+			self.tgt1 = tgt1
+				
+			tgt2pressed = False
+			if tgt2 > 1 and self.tgt2 == 0:
+				tgt2pressed = True
+			self.tgt2 = tgt2
+
+			tgt3pressed = False
+			if tgt3 > 1 and self.tgt3 == 0:
+				tgt3pressed = True
+			self.tgt3 = tgt3
+	
+	
+			# print(linearr)
 
 			if self.robotState.z and self.targetPitch == 0 < 500:
 				self.gripperStart()
@@ -539,9 +572,12 @@ class JsController(Node):
 				self.targetPitch = PITCH_DOWN 
 				self.inputTimestamp = time.time()
 
-			if tgt1 > 0 or tgt2 > 0 or tgt3 > 0:
-				self.gripperDrop()
-				self.goHome = True
+			if tgt1pressed or tgt2pressed or tgt3pressed:
+				def f_gohome():
+					# print("hello, world!")
+					self.goHome = True
+				self.scheduledEvents.append((time.time() + GOHOME_DELAY, f_gohome))
+				self.scheduledEvents.append((time.time() + GOHOME_DELAY + DROP_DELAY, self.gripperDrop))
 
 			wait = None
 			if self.robotState.error == 22: # self-collision
@@ -552,6 +588,14 @@ class JsController(Node):
 				wait = self.clearErrorAndReverse()
 			else:
 				wait = self.setVelocitiesFromJoystick(dtheta, dr, dz)
+
+			for event in self.scheduledEvents:
+				ts, fn = event
+				print(ts, ts-time.time(), fn)
+				if time.time() > ts:
+					fn()
+			self.scheduledEvents = list(filter(lambda e: e[0] > time.time(), self.scheduledEvents))
+
 			while not next(wait):
 				yield
 
