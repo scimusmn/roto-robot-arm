@@ -282,6 +282,10 @@ void setup() {
   pinMode(TARGET2, INPUT_PULLUP);
   pinMode(TARGET3, INPUT_PULLUP);
 
+  pinMode(BRIGHTSIGN_B0, OUTPUT);
+  pinMode(BRIGHTSIGN_B1, OUTPUT);
+  pinMode(BRIGHTSIGN_B2, OUTPUT);
+
   // configure LED strip
   strip.begin();
   strip.show();
